@@ -8,8 +8,6 @@ Copied over work from previous qmd (`high_prob_beaver_biodiv.qmd`)
 
 
 
-
-
 ## Set up
 ```{r}
 rm(list=ls())
@@ -31,24 +29,43 @@ results_wild <- results_deploy_final |>
 
 highprob_results_wild <- results_wild |>
   filter(probability >= 0.8)
+
+## land use data
+lulc <- read.csv(here("Data", "LULC_spillover_diversity.csv"))
+glimpse(lulc)
 ```
 
 
 To prep data for multiple regression need to:
 
-* scale the data?
-* pivot
-* Get species richness for each site (the response variable)
-* join that with landcover data...
+Columns for SR, treatment, site, perc developed, perc other habitat types
 
+```{r}
+results_wild_wide <- results_wild |>
+  group_by(treatment, deployment_num, species) |>
+  summarise(num_detections = n()) |>
+  pivot_wider(names_from = species, values_from = num_detections)
+
+
+results_wild_wide[is.na(results_wild_wide)] <- 0
+
+results_wild_vegan <- results_wild_wide |>
+  ungroup() |>
+  select(-treatment, -deployment_num)
+
+Div_Indices <- results_wild_wide[,1:2]
+Div_Indices$SR <- specnumber(results_wild_vegan) 
+Div_Indices
+
+## don't need treatment here because will be joining with dataset that already has treatment
+
+Div_Indices_SR <- Div_Indices |>
+  ungroup() |>
+  select(-treatment)
+```
 
 
 ## Landcover data
-
-```{r}
-lulc <- read.csv(here("Data", "LULC_spillover_diversity.csv"))
-glimpse(lulc)
-```
 
 
 To do:
@@ -56,6 +73,7 @@ To do:
 * filter to just the percentages
 
 ```{r}
+## just the percentage variables
 lulc_narrow <- lulc |>
   select(1, 2, 17:29) 
 glimpse(lulc_narrow)
@@ -76,42 +94,45 @@ lulc_combined <- lulc_narrow |>
 
 
 ```{r}
-lulc_combined_7.7 <- lulc_combined |>
+## join SR with lulc data
+
+lulc_sr_all <- left_join(Div_Indices_SR, lulc_combined, by = join_by(deployment_num == DEPLOYMENT_NUM))
+
+lulc_sr_7.7 <- lulc_sr_all |>
   filter(area_ha == "7.7")
 
-lulc_combined_17.6 <- lulc_combined |>
+lulc_sr_17.6 <- lulc_sr_all |>
   filter(area_ha == "17.6")
-
-Div_Ind_join <- Div_Indices_high |>
-  select(c("deployment_num", "SR"))
-
-lulc_joined_7.7 <- left_join(Div_Ind_join, lulc_combined_7.7, by = join_by(deployment_num == DEPLOYMENT_NUM))
-
-lulc_joined_17.6 <- left_join(Div_Ind_join, lulc_combined_17.6, by = join_by(deployment_num == DEPLOYMENT_NUM))
+```
 
 
+```{r}
 ## explore variables to see what predictors to include
 
-ggplot(data = lulc_joined_7.7, aes(x = treatment, y = p_water)) +
+ggplot(data = lulc_sr_7.7, aes(x = treatment, y = p_water)) +
   geom_boxplot()
 ## a bit more in beaver but not much
 
-ggplot(data = lulc_joined_7.7, aes(x = treatment, y = p_Developed)) +
+ggplot(data = lulc_sr_7.7, aes(x = treatment, y = p_Developed)) +
   geom_boxplot()
 ## more in control
 
-ggplot(data = lulc_joined_7.7, aes(x = treatment, y = p_forest)) +
+ggplot(data = lulc_sr_7.7, aes(x = treatment, y = p_forest)) +
   geom_boxplot()
 ## about the same means
 
-ggplot(data = lulc_joined_7.7, aes(x = treatment, y = p_grassy)) +
+ggplot(data = lulc_sr_7.7, aes(x = treatment, y = p_grassy)) +
   geom_boxplot()
 ## more in beaver
 
-ggplot(data = lulc_joined_7.7, aes(x = treatment, y = p_Woody_wetlands)) +
+ggplot(data = lulc_sr_7.7, aes(x = treatment, y = p_Woody_wetlands)) +
   geom_boxplot()
 ## p_woody_wetlands about same
 ## p_emergent_wetlands more in beaver none in control
+
+ggplot(data = lulc_sr_7.7, aes(x = treatment, y = p_Open_water)) +
+  geom_boxplot()
+## not much open water in either with outlier exception in beaver
 ```
 
 
@@ -121,12 +142,12 @@ beaver_active_df <- tibble(deployment_num = c("AM0063", "AM0064", "AM0081", "AM0
        active_yn = c("hist", "hist", "yes", "yes", "yes", "yes", "yes", "hist", "no", "no", "no", "no", "no", "no", "no", "no"))
 
 ## paused here because not sure how to distinguish past presence with 
-lulc_joined_7.7 <- left_join(lulc_joined_7.7, beaver_active_df, by = join_by(deployment_num))
+lulc_sr_7.7 <- left_join(lulc_sr_7.7, beaver_active_df, by = join_by(deployment_num))
 
-lulc_joined_7.7 <- lulc_joined_7.7 |>
+lulc_sr_7.7 <- lulc_sr_7.7 |>
   relocate(active_yn)
 
-lulc_joined_17.6 <-left_join(lulc_joined_17.6, beaver_active_df, by = join_by(deployment_num)) |>
+lulc_sr_17.6 <-left_join(lulc_sr_17.6, beaver_active_df, by = join_by(deployment_num)) |>
   relocate(active_yn)
 ```
 
@@ -143,35 +164,143 @@ human predictors
 * p_developed
 
 ```{r}
-beaver_model <- lm(data = lulc_joined_7.7, SR ~ treatment + p_water + p_grassy) # activy_yn
+beaver_model <- lm(data = lulc_sr_7.7, SR ~ treatment + p_water + p_grassy) # activy_yn
 summary(beaver_model)
 
-human_model <- lm(data = lulc_joined_7.7, SR ~ p_Developed + treatment)
+human_model <- lm(data = lulc_sr_7.7, SR ~ p_Developed + treatment)
 summary(human_model)
 
 
 ## full model
-full_model <- lm(data = lulc_joined_7.7, SR ~ p_Developed + treatment + p_water)
+full_model_short <- lm(data = lulc_sr_7.7, SR ~ p_Developed + treatment + p_water)
+summary(full_model_short)
+```
+
+## 17.6 area models 
+### full model then stepwise regression
+
+```{r}
+full_model <- lm(data = lulc_sr_17.6, SR ~ treatment + p_Developed + p_water + p_forest + p_grassy)
 summary(full_model)
+
+
+backward_model <- step(full_model, direction = "backward")
+## backward doesn't take anything out
+
+intercept_only <- lm(SR ~ 1, data = lulc_sr_17.6)
+
+forward_model <- step(intercept_only, direction = "forward", scope = formula(full_model))
+## best: treatment only
+
+both_model <- step(intercept_only, direction = "both", scope = list(lower = intercept_only, upper = full_model))
+## treatment only (had open_water in there before took out)
 ```
 
 ```{r}
-pivot_longer(cols = 3:15, names_to = "land_type", values_to = "percent_area")
+old_best_step_both <- lm(SR ~ treatment + p_Open_water, data = lulc_sr_17.6)
+summary(best_step_both)
+
+best_step_both_17.6 <- lm(SR ~ treatment, data = lulc_sr_17.6)
+summary(best_step_both_17.6)
 ```
 
-
-
-Join to Div_Indices dataframe so that can be used in a model with div indices as response
+## 7.7 area level
 ```{r}
-Div_Indices_high_joined <- left_join(Div_Indices_high, lulc_long, by = join_by(deployment_num == DEPLOYMENT_NUM))
-Div_Indices_high
+full_model_7.7 <- lm(data = lulc_sr_7.7, SR ~ treatment + p_Developed + p_water + p_forest + p_grassy)
+summary(full_model_7.7)
+
+
+backward_model_7.7 <- step(full_model_7.7, direction = "backward")
+## best: SR ~ p_Developed + p_water + p_forest
+
+intercept_only_7.7 <- lm(SR ~ 1, data = lulc_sr_7.7)
+
+forward_model_7.7 <- step(intercept_only_7.7, direction = "forward", scope = formula(full_model_7.7))
+## best: SR ~ p_Developed + p_grassy
+
+both_model_7.7 <- step(intercept_only_7.7, direction = "both", scope = list(lower = intercept_only_7.7, upper = full_model_7.7))
+## best: SR ~ p_Developed + p_grassy
 ```
 
-mutate for treatment
-pivot 
+```{r}
+old_best_7.7 <- lm(SR ~ p_Developed + p_Open_water + treatment, data = lulc_sr_17.6)
+summary(old_best_7.7) ## not great
+
+best_7.7 <- lm(SR ~ p_Developed + p_grassy, data = lulc_sr_17.6)
+summary(best_7.7)
+```
 
 
+## GLM models
 
+```{r}
+## want to have control be the baseline - need to relevel
+lulc_sr_7.7 <- lulc_sr_7.7 |>
+  mutate(treatment = as.factor(treatment)) |>
+  mutate(treatment = relevel(treatment, "control"))
+```
+
+
+```{r}
+glm_mod_full <- glm(SR ~ treatment + p_Developed + p_water + p_forest + p_grassy, data = lulc_sr_7.7, family = "poisson")
+summary(glm_mod_full)
+```
+
+```{r}
+glm_mod_limited <- glm(SR ~ treatment + p_Developed + p_water + p_forest, data = lulc_sr_7.7, family = "poisson")
+summary(glm_mod_limited)
+```
+
+```{r}
+glm_mod_lulc_only <- glm(SR ~ p_Developed + p_water + p_forest, data = lulc_sr_7.7, family = "poisson")
+summary(glm_mod_lulc_only)
+```
+
+```{r}
+glm_mod_threePred <- glm(SR ~ treatment + p_Developed + p_water, data = lulc_sr_7.7, family = "poisson")
+summary(glm_mod_threePred)
+```
+
+
+## Descriptive stats of lulc data
+
+```{r}
+habitat_means <- lulc_sr_7.7 |>
+  group_by(treatment) |>
+  summarise(p_development = mean(p_Developed),
+            p_water = mean(p_water),
+            p_forest = mean(p_forest),
+            p_grassy = mean(p_grassy))
+
+habitat_sd <- lulc_sr_7.7 |>
+  group_by(treatment) |>
+  summarise(p_development = sd(p_Developed),
+            p_water = sd(p_water),
+            p_forest = sd(p_forest),
+            p_grassy = sd(p_grassy))
+
+habi_means <- habitat_means |>
+  pivot_longer(cols = 2:5, names_to = "habitat", values_to = "means")
+
+habi_sd <- habitat_sd |>
+  pivot_longer(cols = 2:5, names_to = "habitat", values_to = "sd")
+
+habi_joined <- left_join(habi_means, habi_sd, by = join_by(habitat, treatment))
+```
+
+```{r}
+plot_habi_means <- ggplot(data = habi_joined, aes(x = treatment, y = means)) +
+  geom_errorbar(data = habi_joined, aes(ymin = means - sd, ymax = means + sd, color = treatment), width = 0.2, linewidth = 1) +
+  geom_point() +
+  facet_wrap(~habitat) +
+  theme_bw() +
+  scale_color_manual(values = c("#2c7fb8", "#7fcdbb")) +
+  labs(x = "Treatment",
+       y = "Mean percent habitat",
+       color = "Treatment")
+
+ggsave(here("Output", "plot_habi_means.png"), plot = plot_habi_means, width = 7, height = 5)
+```
 
 
 

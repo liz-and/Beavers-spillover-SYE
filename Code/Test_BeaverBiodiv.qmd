@@ -59,7 +59,7 @@ results_wild_vegan <- results_wild_wide |>
 ```{r}
 Div_Indices_notscaled <- results_wild_wide[,1:2]
 Div_Indices_notscaled$SR <- specnumber(results_wild_vegan) 
-Div_Indices_notscaled ## this is giving the same +2 values for SR...
+Div_Indices_notscaled 
 ```
 #### Wilcoxon Test
 
@@ -111,13 +111,7 @@ ggplot(data = overall_mean_SR, aes(x = treatment, y = mean_overall_SR)) +
   labs(x = "Treatment", y = "Species richness per site")
 ```
 
-#### Mann-Whitney U test
 
-```{r}
-wilcox.test(SR ~ treatment, data = Div_Indices_notscaled)
-
-
-```
 
 
 
