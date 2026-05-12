@@ -103,6 +103,9 @@ lulc_sr_7.7 <- lulc_sr_all |>
 
 lulc_sr_17.6 <- lulc_sr_all |>
   filter(area_ha == "17.6")
+
+lulc_sr_1.1 <- lulc_sr_all |>
+  filter(area_ha == "1.1")
 ```
 
 
@@ -198,7 +201,7 @@ both_model <- step(intercept_only, direction = "both", scope = list(lower = inte
 
 ```{r}
 old_best_step_both <- lm(SR ~ treatment + p_Open_water, data = lulc_sr_17.6)
-summary(best_step_both)
+summary(old_best_step_both)
 
 best_step_both_17.6 <- lm(SR ~ treatment, data = lulc_sr_17.6)
 summary(best_step_both_17.6)
@@ -244,6 +247,7 @@ lulc_sr_7.7 <- lulc_sr_7.7 |>
 ```{r}
 glm_mod_full <- glm(SR ~ treatment + p_Developed + p_water + p_forest + p_grassy, data = lulc_sr_7.7, family = "poisson")
 summary(glm_mod_full)
+## having p_grassy gives warning that did not converge (I think b/c no diff)
 ```
 
 ```{r}
@@ -260,6 +264,62 @@ summary(glm_mod_lulc_only)
 glm_mod_threePred <- glm(SR ~ treatment + p_Developed + p_water, data = lulc_sr_7.7, family = "poisson")
 summary(glm_mod_threePred)
 ```
+
+#### Try stepwise with glm
+```{r}
+step(glm_mod_limited)
+```
+
+#### Test for overdispersion 
+(according to google) divide residual deviance by degrees of freedom. If much over 1, then overdispersed. 
+Can also use the following package and function to check:
+```{r}
+library(performance)
+check_overdispersion(glm_mod_limited)
+## no overdispersion detected. (So poisson model works)
+```
+
+```{r}
+best_mod_7.7 <- glm(formula = SR ~ p_Developed + p_water + p_forest, family = "poisson", 
+    data = lulc_sr_7.7)
+
+summary(best_mod_7.7)
+```
+
+#### Check for multicolinearity
+```{r}
+library(car)
+vif(best_mod_7.7)
+## above 5 or 10 means problematic multicolinearity
+```
+
+#### Reduce multicolinearity
+```{r}
+mod_less_colin <- glm(SR ~ p_Developed + p_water, family = "poisson", 
+    data = lulc_sr_7.7)
+summary(mod_less_colin)
+
+vif(mod_less_colin) ## not problematic multicolinearity
+```
+
+```{r}
+## test with 17.6 data and same model
+mod_less_colin_17.6 <- glm(SR ~ p_Developed + p_water, family = "poisson", data = lulc_sr_17.6)
+summary(mod_less_colin_17.6) ## not signif at this level
+
+vif(mod_less_colin_17.6) # no multicolin problem
+
+
+## check with 1.1 data and same model
+mod_less_colin_1.1 <- glm(SR ~ p_Developed + p_water, family = "poisson", data = lulc_sr_1.1)
+summary(mod_less_colin_1.1) ## also not signif at this level
+
+vif(mod_less_colin_1.1) ## no mulicolin
+
+```
+
+
+
 
 
 ## Descriptive stats of lulc data

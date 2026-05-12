@@ -68,8 +68,6 @@ ggplot(lulc_long, aes(area_ha, percent, color = treatment))+
   coord_flip()
 ```
 
-
-
 The model will break if there are zeros for any of the data, so one solution is to put in a very small number for all the zero values. Let's do that:
 
 ```{r}
@@ -91,8 +89,7 @@ ggplot(lulc_long, aes(LU_category,  percent, color = treatment))+
   coord_flip()
 ```
 
-Now model:
-Now fit model. Basically asking does percent of land in each category differ as a function of treatment or scale (1.1 ha vs. 7.7ha  vs. 17.6 ha)
+Now model: Now fit model. Basically asking does percent of land in each category differ as a function of treatment or scale (1.1 ha vs. 7.7ha vs. 17.6 ha)
 
 I think we need wide format data for the regression package:
 
@@ -117,18 +114,22 @@ lulc_for_reg <- lulc_for_reg |>
     p_grassy = case_when(p_grassy == 0 ~0.001, p_grassy != 0 ~ p_grassy)
   )
 ```
+
 Now prep data:
 
 The 4 proportions serve as the dependent variables and need to be put into a matrix using function `DR_data`:
+
 ```{r}
 lulc_for_reg$Y <- DR_data(lulc_for_reg[, 4:7], base = 1)
 #base = 1 determines the "reference class) -- the component that is not explicitly modeled. 
 ```
+
 Ok! Now we can fit the model:
 
 ```{r}
 res1 <-DirichReg(Y ~ treatment + area_ha, data = lulc_for_reg, model = "alternative")
 ```
+
 Got warnings, so let's try making both treatment and area_ha into factors and see what happens
 
 ```{r}
@@ -138,18 +139,23 @@ lulc_for_reg$area_ha <- as.factor(lulc_for_reg$area_ha)
 res1 <-DirichReg(Y ~ treatment + area_ha, data = lulc_for_reg, model = "alternative")
 
 ```
+
 Now view output:
 
 ```{r}
 summary(res1)
 ```
+
 Now get plot predicted values for each LULC component along with the observed data
+
 ```{r}
 #obtain fitted values
 pred <- fitted(res1)
 pred <- data.frame(lulc_for_reg[, 1:3], pred )
 ```
+
 Now melt the predicted values (make them long) for use in ggplot
+
 ```{r}
 pred.melt <- melt(pred, id.var = 1:3)
 pred.melt.sim <- unique(pred.melt)
@@ -157,6 +163,7 @@ pred.melt.sim <- unique(pred.melt)
 ```
 
 Now plot
+
 ```{r}
 ggplot()+
   geom_point(aes(x = LU_category, percent,color = treatment), data = lulc_long)+
@@ -172,5 +179,3 @@ ggplot()+
 ```
 
 According to my analysis, there are not significant differences among the different land use classes between treatments or between spatial scales.
-
-
