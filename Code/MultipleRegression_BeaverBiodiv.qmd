@@ -324,6 +324,8 @@ vif(mod_less_colin_1.1) ## no mulicolin
 
 ## Descriptive stats of lulc data
 
+### 7.7
+
 ```{r}
 habitat_means <- lulc_sr_7.7 |>
   group_by(treatment) |>
@@ -352,7 +354,7 @@ habi_joined <- left_join(habi_means, habi_sd, by = join_by(habitat, treatment))
 plot_habi_means <- ggplot(data = habi_joined, aes(x = treatment, y = means)) +
   geom_errorbar(data = habi_joined, aes(ymin = means - sd, ymax = means + sd, color = treatment), width = 0.2, linewidth = 1) +
   geom_point() +
-  facet_wrap(~habitat) +
+  facet_wrap(~habitat, scales = "free") +
   theme_bw() +
   scale_color_manual(values = c("#2c7fb8", "#7fcdbb")) +
   labs(x = "Treatment",
@@ -361,6 +363,110 @@ plot_habi_means <- ggplot(data = habi_joined, aes(x = treatment, y = means)) +
 
 ggsave(here("Output", "plot_habi_means.png"), plot = plot_habi_means, width = 7, height = 5)
 ```
+
+## wilcoxon tests
+Test if signif diff in the means of lulc between treatments
+```{r}
+habi_dev <- habi_joined |>
+  filter(habitat == "p_development")
+
+wilcox.test(means ~ treatment, data = habi_dev)
+
+
+  
+wilcox.test(p_Developed ~ treatment, data = lulc_sr_7.7)
+
+wilcox.test(p_water ~ treatment, data = lulc_sr_7.7)
+
+wilcox.test(p_forest ~ treatment, data = lulc_sr_7.7)
+
+wilcox.test(p_grassy ~ treatment, data = lulc_sr_7.7)
+```
+
+
+
+### 1.1
+
+```{r}
+habitat_means1.1 <- lulc_sr_1.1 |>
+  group_by(treatment) |>
+  summarise(p_development = mean(p_Developed),
+            p_water = mean(p_water),
+            p_forest = mean(p_forest),
+            p_grassy = mean(p_grassy))
+
+habitat_sd1.1 <- lulc_sr_1.1 |>
+  group_by(treatment) |>
+  summarise(p_development = sd(p_Developed),
+            p_water = sd(p_water),
+            p_forest = sd(p_forest),
+            p_grassy = sd(p_grassy))
+
+habi_means1.1 <- habitat_means1.1 |>
+  pivot_longer(cols = 2:5, names_to = "habitat", values_to = "means")
+
+habi_sd1.1 <- habitat_sd1.1 |>
+  pivot_longer(cols = 2:5, names_to = "habitat", values_to = "sd")
+
+habi_joined1.1 <- left_join(habi_means1.1, habi_sd1.1, by = join_by(habitat, treatment))
+```
+
+```{r}
+plot_habi_means1.1 <- ggplot(data = habi_joined1.1, aes(x = treatment, y = means)) +
+  geom_errorbar(data = habi_joined1.1, aes(ymin = means - sd, ymax = means + sd, color = treatment), width = 0.2, linewidth = 1) +
+  geom_point() +
+  facet_wrap(~habitat, scales = "free") +
+  theme_bw() +
+  scale_color_manual(values = c("#7fcdbb", "#2c7fb8")) +
+  labs(x = "Treatment",
+       y = "Mean percent habitat",
+       color = "Treatment")
+```
+
+### 17.6
+```{r}
+habitat_means17.6 <- lulc_sr_17.6 |>
+  group_by(treatment) |>
+  summarise(p_development = mean(p_Developed),
+            p_water = mean(p_water),
+            p_forest = mean(p_forest),
+            p_grassy = mean(p_grassy))
+
+habitat_sd17.6 <- lulc_sr_17.6 |>
+  group_by(treatment) |>
+  summarise(p_development = sd(p_Developed),
+            p_water = sd(p_water),
+            p_forest = sd(p_forest),
+            p_grassy = sd(p_grassy))
+
+habi_means17.6 <- habitat_means17.6 |>
+  pivot_longer(cols = 2:5, names_to = "habitat", values_to = "means")
+
+habi_sd17.6 <- habitat_sd17.6 |>
+  pivot_longer(cols = 2:5, names_to = "habitat", values_to = "sd")
+
+habi_joined17.6 <- left_join(habi_means17.6, habi_sd17.6, by = join_by(habitat, treatment))
+```
+
+```{r}
+plot_habi_means17.6 <- ggplot(data = habi_joined17.6, aes(x = treatment, y = means)) +
+  geom_errorbar(data = habi_joined1.1, aes(ymin = means - sd, ymax = means + sd, color = treatment), width = 0.2, linewidth = 1) +
+  geom_point() +
+  facet_wrap(~habitat, scales = "free") +
+  theme_bw() +
+  scale_color_manual(values = c("#7fcdbb", "#2c7fb8")) +
+  labs(x = "Treatment",
+       y = "Mean percent habitat",
+       color = "Treatment")
+```
+
+
+
+
+
+
+
+
 
 
 
